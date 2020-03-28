@@ -2,16 +2,37 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
+	"wayback-downloader/wayback"
 )
 
 func main() {
+	if len(os.Args) != 3 {
+		fmt.Printf("USAGE: %s <domain name> <year> \n", os.Args[0])
+		os.Exit(0)
+	}
+
+	domain := os.Args[1]
+	yearStr := os.Args[2]
+
+	year, err := strconv.Atoi(yearStr)
+	if err != nil {
+		fmt.Printf("Unable to parse Year argument, it's should be a number -> %s \n", err.Error())
+		fmt.Printf("USAGE: %s <domain name> <year> \n", os.Args[0])
+		os.Exit(0)
+	}
+
+	waybackURL, err := wayback.GetAnnualURL(domain, year)
+
 	// Request the HTML page.
-	res, err := http.Get("http://web.archive.org/web/20060101014129/http://facebook.com:80/")
+	res, err := http.Get(waybackURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,9 +74,8 @@ func main() {
 	}
 
 	lines[htmlStartIndex] = lines[htmlStartIndex] + "<head>"
-	tmpLine := append(lines[:htmlStartIndex+1], lines[headRewriteIndex+1:removeLineStart]...)
+	tmpLine := append(lines[:htmlStartIndex+1], lines[headRewriteIndex+1:removeLineStart+1]...)
 
-	tmpLine2 := append(lines[headRewriteIndex+2:removeLineStart], lines[removeLineEnd+1:endOfHTML+1]...)
-	lines = append(tmpLine, tmpLine2...)
-	ioutil.WriteFile("fb.html", []byte(strings.Join(lines, "\n")), 0644)
+	tmpLine = append(tmpLine, lines[removeLineEnd+1:endOfHTML+1]...)
+	ioutil.WriteFile("fb.html", []byte(strings.Join(tmpLine, "\n")), 0644)
 }
