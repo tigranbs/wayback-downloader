@@ -33,5 +33,10 @@ func main() {
 		log.Fatal(err)
 	}
 
+	content, err = wayback.FetchAssets(content, "./assets")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	ioutil.WriteFile("fb.html", []byte(content), 0644)
 }

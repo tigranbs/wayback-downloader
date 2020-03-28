@@ -10,7 +10,6 @@ import (
 
 // GetHTML handles url and after fetching HTML content tries to clean up
 func GetHTML(url string) (string, error) {
-	// Request the HTML page.
 	res, err := http.Get(url)
 	if err != nil {
 		return "", fmt.Errorf("Unable to make an HTTP request -> %s", err.Error())
