@@ -8,37 +8,34 @@ import (
 	"io"
 	"log"
 	"net/http"
+	urlParser "net/url"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 // FetchAssets downloading and saving assets to specified output directory
-func FetchAssets(htmlContent, outputDir string) (string, error) {
+func FetchAssets(domain, htmlContent, outputDir string) (string, error) {
 	_, err := os.Stat(outputDir)
 	if err != nil {
 		os.Mkdir(outputDir, 0777)
 	}
-
-	var wg sync.WaitGroup
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewBufferString(htmlContent))
 	if err != nil {
 		return "", err
 	}
 
-	doc.Find("link[href], *[src]").Each(func(i int, s *goquery.Selection) {
-		if i%3 == 0 {
-			wg.Wait()
-		}
-		go processAssetNode(s, outputDir, &wg)
+	doc.Find("a[href]").Each(func(i int, s *goquery.Selection) {
+		s.SetAttr("href", "")
 	})
 
-	wg.Wait()
+	doc.Find("link[href], *[src]").Each(func(i int, s *goquery.Selection) {
+		processAssetNode(domain, s, outputDir)
+	})
 
 	newContent, err := doc.Html()
 	if err != nil {
@@ -48,16 +45,19 @@ func FetchAssets(htmlContent, outputDir string) (string, error) {
 	return newContent, nil
 }
 
-func processAssetNode(s *goquery.Selection, outputDir string, wg *sync.WaitGroup) {
-	wg.Add(1)
-	defer wg.Done()
-
+func processAssetNode(domain string, s *goquery.Selection, outputDir string) {
 	linkType, _ := s.Attr("type")
-	hrefURL, _ := s.Attr("href")
+	hrefURL, isHref := s.Attr("href")
 	srcURL, isSrc := s.Attr("src")
 
 	tagName := strings.ToLower(goquery.NodeName(s))
 	finalFileName := ""
+
+	if isSrc && srcURL[0] == '/' {
+		srcURL = fmt.Sprintf("http://web.archive.org%s", srcURL)
+	} else if isHref && hrefURL[0] == '/' {
+		hrefURL = fmt.Sprintf("http://web.archive.org%s", hrefURL)
+	}
 
 	if tagName == "script" || tagName == "img" {
 		finalFileName = downloadAsset(srcURL, outputDir)
@@ -82,8 +82,15 @@ func downloadAsset(url, outputDir string) string {
 	hasher := md5.New()
 	hasher.Write([]byte(url))
 
-	filePath := path.Join(outputDir, fmt.Sprintf("%s%s", hex.EncodeToString(hasher.Sum(nil)), filepath.Ext(url)))
-	_, err := os.Stat(filePath)
+	up, err := urlParser.Parse(url)
+	if err != nil {
+		return ""
+	}
+
+	fileName := fmt.Sprintf("%s%s", hex.EncodeToString(hasher.Sum(nil)), filepath.Ext(up.Path))
+
+	filePath := path.Join(outputDir, fileName)
+	_, err = os.Stat(filePath)
 	if err == nil {
 		return filePath
 	}
@@ -113,5 +120,5 @@ func downloadAsset(url, outputDir string) string {
 		return ""
 	}
 
-	return filePath
+	return path.Join("assets", fileName)
 }
