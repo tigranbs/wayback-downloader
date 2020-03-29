@@ -63,19 +63,14 @@ func processAssetNode(domain string, s *goquery.Selection, outputDir string) {
 		finalFileName = downloadAsset(srcURL, outputDir)
 	} else if linkType == "text/css" {
 		finalFileName = downloadAsset(hrefURL, outputDir)
-	} else {
-		return
 	}
 
-	if len(finalFileName) > 0 {
-		attrName := "href"
-		if isSrc {
-			attrName = "src"
-		}
-
-		s.SetAttr(attrName, finalFileName)
+	attrName := "href"
+	if isSrc {
+		attrName = "src"
 	}
 
+	s.SetAttr(attrName, finalFileName)
 }
 
 func downloadAsset(url, outputDir string) string {
@@ -103,7 +98,7 @@ func downloadAsset(url, outputDir string) string {
 
 	defer res.Body.Close()
 	if res.StatusCode != 200 {
-		log.Printf("ASSET FETCH: HTTP status error %d %s \n", res.Status, url)
+		log.Printf("ASSET FETCH: HTTP status error %s %s \n", res.Status, url)
 		return ""
 	}
 

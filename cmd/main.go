@@ -20,42 +20,56 @@ var BaseCMD = &cobra.Command{
 }
 
 var (
-	domainVar string
-	outputVar string
-	yearVar   int
+	domainVar    string
+	outputVar    string
+	yearVar      int
+	startYearVar int
+	endYearVar   int
 )
 
 func init() {
 	BaseCMD.Flags().StringVarP(&domainVar, "domain", "d", "", "Domain name of target (required)")
-	BaseCMD.Flags().IntVarP(&yearVar, "year", "y", 2006, "Year for downloading target (required)")
-	BaseCMD.Flags().StringVarP(&outputVar, "output", "o", "", "Downloaded output directory (required)")
+	BaseCMD.Flags().IntVarP(&yearVar, "year", "y", 0, "Year for downloading target")
+	BaseCMD.Flags().IntVarP(&startYearVar, "startYear", "s", 2006, "Start Year for downloading target")
+	BaseCMD.Flags().IntVarP(&endYearVar, "endYear", "e", 2006, "End Year for downloading target")
+	BaseCMD.Flags().StringVarP(&outputVar, "output", "o", "", "Downloaded output directory")
 
 	BaseCMD.MarkFlagRequired("domain")
-	BaseCMD.MarkFlagRequired("year")
 }
 
 func mainCMD(cmd *cobra.Command, args []string) {
-	waybackURL, err := wayback.GetAnnualURL(domainVar, yearVar)
-
-	// Request the HTML page.
-	content, err := wayback.GetHTML(waybackURL)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	if len(outputVar) == 0 {
-		outputVar = path.Join(domainVar, strconv.Itoa(yearVar))
+		outputVar = domainVar
 	}
 
-	_, err = os.Stat(outputVar)
-	if err != nil {
-		os.MkdirAll(outputVar, 0777)
+	if yearVar > 0 {
+		startYearVar = yearVar
+		endYearVar = yearVar
 	}
 
-	content, err = wayback.FetchAssets(domainVar, content, path.Join(outputVar, "assets"))
-	if err != nil {
-		log.Fatal(err)
-	}
+	for currentYear := startYearVar; currentYear <= endYearVar; currentYear++ {
+		waybackURL, err := wayback.GetAnnualURL(domainVar, currentYear)
 
-	ioutil.WriteFile(path.Join(outputVar, "index.html"), []byte(content), 0644)
+		// Request the HTML page.
+		content, err := wayback.GetHTML(waybackURL)
+		if err != nil {
+			continue
+		}
+
+		log.Println("Downloading Domain:", domainVar, "Year:", currentYear)
+		outputDirectory := path.Join(outputVar, strconv.Itoa(currentYear))
+
+		_, err = os.Stat(outputDirectory)
+		if err != nil {
+			os.MkdirAll(outputDirectory, 0777)
+		}
+
+		content, err = wayback.FetchAssets(domainVar, content, path.Join(outputDirectory, "assets"))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		ioutil.WriteFile(path.Join(outputDirectory, "index.html"), []byte(content), 0644)
+		log.Println("Completed Domain:", domainVar, "Year:", currentYear)
+	}
 }
