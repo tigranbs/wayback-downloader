@@ -1,7 +1,7 @@
 package main
 
 import (
-	"wayback-downloader/cmd"
+	"github.com/tigranbs/wayback-downloader/cmd"
 )
 
 func main() {
