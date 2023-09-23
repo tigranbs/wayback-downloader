@@ -7,7 +7,8 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"wayback-downloader/wayback"
+
+	"github.com/tigranbs/wayback-downloader/wayback"
 
 	"github.com/spf13/cobra"
 )
